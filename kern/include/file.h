@@ -14,10 +14,11 @@
 /*
  * Put your function declarations and data types here ...
  */
-struct open_file_table {
-    int fp;
+typedef struct open_file_table {
+    int fd;
+    off_t fp;
     vnode *vptr;
-}
+} of_table;
 
 
 #endif /* _FILE_H_ */

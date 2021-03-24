@@ -48,6 +48,8 @@
 #include <current.h>
 #include <addrspace.h>
 #include <vnode.h>
+#include <file.h>
+
 
 /*
  * The process for the kernel; this holds all the kernel-only threads.
@@ -83,6 +85,10 @@ proc_create(const char *name)
 	proc->p_cwd = NULL;
 
 	return proc;
+}
+
+void create_file_descripter_table (int fd, fd_table *oft) {
+	
 }
 
 /*

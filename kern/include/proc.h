@@ -30,6 +30,8 @@
 #ifndef _PROC_H_
 #define _PROC_H_
 
+#define FD_MAX 128
+
 /*
  * Definition of a process.
  *
@@ -59,6 +61,12 @@ struct vnode;
  * thread_switch needs to be able to fetch the current address space
  * without sleeping.
  */
+
+typedef struct file_descripter_table {
+	int fd;
+	of_table *oft;
+} fd_table;
+
 struct proc {
 	char *p_name;			/* Name of this process */
 	struct spinlock p_lock;		/* Lock for this structure */
@@ -71,6 +79,7 @@ struct proc {
 	struct vnode *p_cwd;		/* current working directory */
 
 	/* add more material here as needed */
+	ft_table proc_ft[FD_MAX]
 };
 
 /* This is the process structure for the kernel and for kernel-only threads. */
