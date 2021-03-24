@@ -19,10 +19,11 @@
  * Add your file-related functions here ...
  */
 int sys_open(const char *filename, int flags) {
-
+    
     int fd = vfs_open(path, flags, mode, vnode);
     
 }
+
 
 int sys_open(const char *filename, int flags, mode_t mode) {
     vfs_open(filename, flags, mode);

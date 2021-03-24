@@ -14,9 +14,11 @@
 /*
  * Put your function declarations and data types here ...
  */
+
 typedef struct open_file_table {
-    int fd;
+    mode_t mode;
     off_t fp;
+    int refcount;
     vnode *vptr;
 } of_table;
 

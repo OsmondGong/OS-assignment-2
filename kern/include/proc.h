@@ -62,10 +62,7 @@ struct vnode;
  * without sleeping.
  */
 
-typedef struct file_descripter_table {
-	int fd;
-	of_table *oft;
-} fd_table;
+
 
 struct proc {
 	char *p_name;			/* Name of this process */
@@ -79,7 +76,9 @@ struct proc {
 	struct vnode *p_cwd;		/* current working directory */
 
 	/* add more material here as needed */
-	ft_table proc_ft[FD_MAX]
+	
+	// file descriptor table
+	int fd_table[FD_MAX];
 };
 
 /* This is the process structure for the kernel and for kernel-only threads. */
