@@ -14,7 +14,10 @@
 /*
  * Put your function declarations and data types here ...
  */
-
+struct open_file_table {
+    vnode *vptr;
+    
+}
 
 
 #endif /* _FILE_H_ */
