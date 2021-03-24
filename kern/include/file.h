@@ -15,8 +15,8 @@
  * Put your function declarations and data types here ...
  */
 struct open_file_table {
+    int fp;
     vnode *vptr;
-    
 }
 
 

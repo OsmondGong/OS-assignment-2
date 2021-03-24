@@ -19,9 +19,8 @@
  * Add your file-related functions here ...
  */
 int sys_open(const char *filename, int flags) {
-    
-    syscall()
-    return vfs_open(path, flags, mode, vnode);
+
+    int fd = vfs_open(path, flags, mode, vnode);
     
 }
 
