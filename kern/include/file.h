@@ -16,6 +16,7 @@
  */
 
 typedef struct open_file_node {
+    int fd;
     struct lock *mult_file;
     off_t fp;
     // int refcount;

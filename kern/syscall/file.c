@@ -37,12 +37,14 @@ int sys_open(const char *filename, int flags) {
     size_t got;
     int filename_check = copyinstr((const_userptr_t)tf->tf_a0, path, NAME_MAX, &got);
     if (filename_check != 0) {
+        lock_release(of_table->concurrency);
         return filename_check;
     }
 
     // check flags
     int all_flags = O_ACCMODE | O_NOCTTY | O_APPEND | O_TRUNC | O_EXCL | O_CREAT;
     if ((flags & all_flags) != flags) {
+        lock_release(of_table->concurrency);
         return EINVAL;
     }
     
@@ -56,6 +58,7 @@ int sys_open(const char *filename, int flags) {
     }
 
     if (fd == -1) {
+        lock_release(of_table->concurrency);
         return EMFILE;
     }
     
@@ -64,16 +67,17 @@ int sys_open(const char *filename, int flags) {
     int fderr = vfs_open(path, tf->tf_a1, tf->tf_a2, &vn);
 
     if (fderr != 0) {
+        lock_release(of_table->concurrency);
         return fderr;
     }
     // get free open file index in array
     for (int i = 0; i < OPEN_MAX; i++) {
         if (of_table->of_list[i] == NULL) {
+            of_table->of_list[i]->fd = fd;
             of_table->of_list[i]->vptr = vn;
             of_table->of_list[i]->mult_file = lock_create("mult_file");
             // of_table->of_list[i]->refcount = 0;
             of_table->of_list[i]->fp = 0;
-            curproc->fd_table[fd]->of_table->of_list[i];
             break;
         }
     }
@@ -84,6 +88,66 @@ int sys_open(const char *filename, int flags) {
 
 
 int sys_open(const char *filename, int flags, mode_t mode) {
-    //vfs_open(filename, flags, mode);
-    return 0;
+    if (of_table == NULL) {
+        of_table = kmalloc(sizeof(openf_table));
+        of_table->concurrency = lock_create("concurrency");
+    }
+    lock_acquire(of_table->concurrency);
+    
+    // get trapframe
+    struct trapframe* tf;
+    syscall(tf);
+
+    // check filename
+    char path[NAME_MAX];
+    size_t got;
+    int filename_check = copyinstr((const_userptr_t)tf->tf_a0, path, NAME_MAX, &got);
+    if (filename_check != 0) {
+        lock_release(of_table->concurrency);
+        return filename_check;
+    }
+
+    // check flags
+    int all_flags = O_ACCMODE | O_NOCTTY | O_APPEND | O_TRUNC | O_EXCL | O_CREAT;
+    if ((flags & all_flags) != flags) {
+        lock_release(of_table->concurrency);
+        return EINVAL;
+    }
+    
+    int fd = -1;
+    // get free file descripter index in array
+    for (int i = 0; i < FD_MAX; i++) {
+        if (curproc->fd_table[i] == NULL) {
+            fd = i;
+            break;
+        }
+    }
+
+    if (fd == -1) {
+        lock_release(of_table->concurrency);
+        return EMFILE;
+    }
+    
+    struct vnode *vn;
+
+    int fderr = vfs_open(path, tf->tf_a1, tf->tf_a2, &vn);
+
+    if (fderr != 0) {
+        lock_release(of_table->concurrency);
+        return fderr;
+    }
+    // get free open file index in array
+    for (int i = 0; i < OPEN_MAX; i++) {
+        if (of_table->of_list[i] == NULL) {
+            of_table->of_list[i]->fd = fd;
+            of_table->of_list[i]->vptr = vn;
+            of_table->of_list[i]->mult_file = lock_create("mult_file");
+            // of_table->of_list[i]->refcount = 0;
+            of_table->of_list[i]->fp = 0;
+            break;
+        }
+    }
+    
+    lock_release(of_table->concurrency);
+    return fd;
 }
