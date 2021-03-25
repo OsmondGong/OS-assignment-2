@@ -84,9 +84,9 @@ proc_create(const char *name)
 	/* VFS fields */
 	proc->p_cwd = NULL;
 
-	// make all file descriptors = -1
+	// make all file descriptors = NULL
 	for (int i = 0; i < FD_MAX; i++) {
-		proc->fd_table[i] = -1;
+		proc->fd_table[i] = NULL;
 	}
 
 	return proc;
