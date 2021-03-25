@@ -59,7 +59,6 @@ int sys_open(const char *filename, int flags) {
 
     // open file and put data in vnode
     int fderr = vfs_open(path, tf->tf_a1, tf->tf_a2, &vn);
-
     if (fderr != 0) {
         return fderr;
     }
@@ -69,12 +68,10 @@ int sys_open(const char *filename, int flags) {
      * open file node (index is same as fd) 
      */
     spinlock_acquire(all_of->of_table_lock);
-
-    //all_of->of_nodes[fd]->fd = fd;
+    all_of->of_nodes[fd]->flags = flags;
+    all_of->of_nodes[fd]->fp = 0;
+    all_of->of_nodes[fd]->refcount = 0;
     all_of->of_nodes[fd]->vptr = vn;
-    //all_of->of_nodes[fd]->mult_file = lock_create("mult_file");
-    // of_table->of_list[fd]->refcount = 0;
-    of_table->of_list[fd]->fp = 0;
 
     
     spinlock_release(all_of->of_table_lock);
