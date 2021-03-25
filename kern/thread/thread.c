@@ -149,6 +149,11 @@ thread_create(const char *name)
 
 	/* If you add to struct thread, be sure to initialize here */
 
+	/* Thread file descriptor table initialisation to all NULL */
+	// for (int i = 0; i < OPEN_MAX; i++) {
+	// 	thread->t_fdtable[i] = NULL;
+	// }
+
 	return thread;
 }
 

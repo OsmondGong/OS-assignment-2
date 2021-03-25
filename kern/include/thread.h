@@ -64,6 +64,12 @@ typedef enum {
 	S_ZOMBIE,	/* zombie; exited but not yet deleted */
 } threadstate_t;
 
+// Struct of file descripter
+// typedef struct file_descriptor {
+// 	int fd_num;
+// 	struct lock *fd_lock;
+// } fd;
+
 /* Thread structure. */
 struct thread {
 	/*
@@ -107,6 +113,8 @@ struct thread {
 	 */
 
 	/* add more here as needed */
+	//int t_fdtable[OPEN_MAX];			/* File descriptor table */
+
 };
 
 /*

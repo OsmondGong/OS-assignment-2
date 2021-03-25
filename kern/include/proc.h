@@ -78,7 +78,8 @@ struct proc {
 	/* add more material here as needed */
 	
 	// file descriptor table
-	int fd_table[FD_MAX];
+	int fd_table[OPEN_MAX];			/* File descriptor table */
+
 };
 
 /* This is the process structure for the kernel and for kernel-only threads. */

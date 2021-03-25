@@ -9,6 +9,8 @@
  * Contains some file-related maximum length constants
  */
 #include <limits.h>
+#include <vnode.h>
+#include <spinlock.h>
 
 
 /*
@@ -16,17 +18,18 @@
  */
 
 typedef struct open_file_node {
-    int fd;
-    struct lock *mult_file;
-    off_t fp;
-    // int refcount;
-    vnode *vptr;
+    //int fd;
+    int flags;
+    int fp;                   /* Offset */
+    int refcount;               /* For dup2 and fork */
+    struct vnode *vptr;
+    //struct lock *mult_file;     
 } of_node;
 
 
 typedef struct open_file_table {
-    struct lock *concurrency;
-    of_node of_list[OPEN_MAX];
-} openf_table
+    struct spinlock *of_table_spinlock;
+    of_node *of_nodes[OPEN_MAX];
+} of_table;
 
 #endif /* _FILE_H_ */
