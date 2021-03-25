@@ -15,12 +15,17 @@
  * Put your function declarations and data types here ...
  */
 
-typedef struct open_file_table {
-    mode_t mode;
+typedef struct open_file_node {
+    struct lock *mult_file;
     off_t fp;
-    int refcount;
+    // int refcount;
     vnode *vptr;
-} of_table;
+} of_node;
 
+
+typedef struct open_file_table {
+    struct lock *concurrency;
+    of_node of_list[OPEN_MAX];
+} openf_table
 
 #endif /* _FILE_H_ */
