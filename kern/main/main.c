@@ -51,6 +51,8 @@
 #include <version.h>
 #include "autoconf.h"  // for pseudoconfig
 
+#include <file.h>
+
 
 /*
  * These two pieces of data are maintained by the makefiles and build system.
@@ -113,6 +115,18 @@ boot(void)
 	hardclock_bootstrap();
 	vfs_bootstrap();
 	kheap_nextgeneration();
+
+	/* Open file table initialisation + lock create */
+	struct lock *of_table_lock = lock_create("open file table lock");
+    of_node *of_table[OPEN_MAX];
+	for (int i = 0; i < OPEN_MAX; i++) {
+		of_table[i]->flags = NULL;
+		of_table[i]->fp = NULL;
+		of_table[i]->refcount = NULL;
+		of_table[i]->vn = NULL;
+	}
+
+
 
 	/* Probe and initialize devices. Interrupts should come on. */
 	kprintf("Device probe...\n");

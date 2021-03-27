@@ -18,18 +18,11 @@
  */
 
 typedef struct open_file_node {
-    //int fd;
     int flags;
     int fp;                   /* Offset */
     int refcount;               /* For dup2 and fork */
-    struct vnode *vptr;
-    //struct lock *mult_file;     
+    struct vnode *vn;
 } of_node;
 
-
-typedef struct open_file_table {
-    struct spinlock *of_table_spinlock;
-    of_node *of_nodes[OPEN_MAX];
-} of_table;
 
 #endif /* _FILE_H_ */

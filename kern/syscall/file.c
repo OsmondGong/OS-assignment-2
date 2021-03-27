@@ -18,21 +18,14 @@
 /*
  * Add your file-related functions here ...
  */
-of_table all_of[OPEN_MAX];
 
-
-int sys_open(const char *filename, int flags) {
-    
-    // get trapframe
-    struct trapframe *tf;
-    syscall(tf);
-
+int sys_open(const char *filename, int flags, int *retval) {
     // check filename
     char path[NAME_MAX];
     size_t got;
-    int filename_check = copyinstr((const_userptr_t)tf->tf_a0, path, 
+    int filename_check = copyinstr((const_userptr_t)filename, path, 
                                     NAME_MAX, &got);
-    if (filename_check != 0) {
+    if (filename_check) {
         return filename_check;
     }
 
@@ -41,10 +34,11 @@ int sys_open(const char *filename, int flags) {
     if ((flags & all_flags) != flags) {
         return EINVAL;
     }
-    
+
+    lock_acquire(of_table_lock);
     int fd = -1;
-    // get free file descripter index in file descriptor table
-    for (int i = 0; i < FD_MAX; i++) {
+    // get free file descripter index in open file table
+    for (int i = 0; i < OPEN_MAX; i++) {
         if (curproc->fd_table[i] == NULL) {
             fd = i;
             break;
@@ -52,14 +46,16 @@ int sys_open(const char *filename, int flags) {
     }
     // file descriptor table is full
     if (fd == -1) {
+        lock_release(of_table_lock);
         return EMFILE;
     }
     
     struct vnode *vn;
-
+    mode_t mode;
     // open file and put data in vnode
-    int fderr = vfs_open(path, tf->tf_a1, tf->tf_a2, &vn);
-    if (fderr != 0) {
+    int fderr = vfs_open(path, flags, mode, &vn);
+    if (fderr) {
+        lock_release(of_table_lock);
         return fderr;
     }
 
@@ -67,79 +63,156 @@ int sys_open(const char *filename, int flags) {
      * Allocate data from vfs opened file into 
      * open file node (index is same as fd) 
      */
-    spinlock_acquire(all_of->of_table_lock);
-    all_of->of_nodes[fd]->flags = flags;
-    all_of->of_nodes[fd]->fp = 0;
-    all_of->of_nodes[fd]->refcount = 0;
-    all_of->of_nodes[fd]->vptr = vn;
+    for (int i = 0; i < OPEN_MAX; i++) {
+        if (of_table[i]->flags == NULL) {
+            curproc->fd_table[fd] = i;
+            of_table[i]->flags = flags;
+            of_table[i]->fp = 0;
+            of_table[i]->refcount = 0;
+            of_table[i]->vn = vn;
+        }
+    }
 
-    
-    spinlock_release(all_of->of_table_lock);
-    return fd;
+    lock_release(of_table_lock);
+    *retval = fd;
+    return 0;
 }
 
 
-int sys_open(const char *filename, int flags, mode_t mode) {
-    if (of_table == NULL) {
-        of_table = kmalloc(sizeof(openf_table));
-        of_table->concurrency = lock_create("concurrency");
-    }
-    lock_acquire(of_table->concurrency);
-    
-    // get trapframe
-    struct trapframe* tf;
-    syscall(tf);
+int sys_open(const char *filename, int flags, mode_t mode, int *retval) {
 
     // check filename
     char path[NAME_MAX];
     size_t got;
-    int filename_check = copyinstr((const_userptr_t)tf->tf_a0, path, NAME_MAX, &got);
-    if (filename_check != 0) {
-        lock_release(of_table->concurrency);
+    int filename_check = copyinstr((const_userptr_t)filename, path, 
+                                    NAME_MAX, &got);
+    if (filename_check) {
         return filename_check;
     }
 
     // check flags
     int all_flags = O_ACCMODE | O_NOCTTY | O_APPEND | O_TRUNC | O_EXCL | O_CREAT;
     if ((flags & all_flags) != flags) {
-        lock_release(of_table->concurrency);
         return EINVAL;
     }
-    
+
+    lock_acquire(of_table_lock);
     int fd = -1;
-    // get free file descripter index in array
-    for (int i = 0; i < FD_MAX; i++) {
+    // get free file descripter index in open file table
+    for (int i = 0; i < OPEN_MAX; i++) {
         if (curproc->fd_table[i] == NULL) {
             fd = i;
             break;
         }
     }
-
+    // file descriptor table is full
     if (fd == -1) {
-        lock_release(of_table->concurrency);
+        lock_release(of_table_lock);
         return EMFILE;
     }
     
     struct vnode *vn;
-
-    int fderr = vfs_open(path, tf->tf_a1, tf->tf_a2, &vn);
-
-    if (fderr != 0) {
-        lock_release(of_table->concurrency);
+    // open file and put data in vnode
+    int fderr = vfs_open(path, flags, mode, &vn);
+    if (fderr) {
+        lock_release(of_table_lock);
         return fderr;
     }
-    // get free open file index in array
+
+    /*  
+     * Allocate data from vfs opened file into 
+     * open file node (index is same as fd) 
+     */
     for (int i = 0; i < OPEN_MAX; i++) {
-        if (of_table->of_list[i] == NULL) {
-            of_table->of_list[i]->fd = fd;
-            of_table->of_list[i]->vptr = vn;
-            of_table->of_list[i]->mult_file = lock_create("mult_file");
-            // of_table->of_list[i]->refcount = 0;
-            of_table->of_list[i]->fp = 0;
-            break;
+        if (of_table[i]->flags == NULL) {
+            curproc->fd_table[fd] = i;
+            of_table[i]->flags = flags;
+            of_table[i]->fp = 0;
+            of_table[i]->refcount = 0;
+            of_table[i]->vn = vn;
         }
     }
+
+    lock_release(of_table_lock);
+    *retval = fd;
+    return 0;
+}
+
+int sys_close (int fd) {
+    // unopened fd
+    if (curproc->fd_table[fd] == NULL) {
+        return EBADF;
+    }
+
+    lock_acquire(of_table_lock);
+    of_node *of = of_table[curproc->fd_table[fd]];
+    vfs_close(of->vn);
+    of_table[i]->flags = NULL;
+    of_table[i]->fp = NULL;
+    of_table[i]->refcount = NULL;
+    of_table[i]->vn = NULL;
+    curproc->fd_table[fd] = NULL;
+    lock_release(of_table_lock);
+
+    return 0;
+}
+
+int sys_read(int fd, void *buf, size_t count, ssize_t *retval) {
+    // unopened fd
+    if (curproc->fd_table[fd] == NULL) {
+        return EBADF;
+    }
+
+    lock_acquire(of_table_lock);
+    // initialise uio using open file
+    struct iovec myiov;
+    struct uio myuio;
+    of_node *of = of_table[curproc->fd_table[fd]];
+
+    uio_kinit(&myiov, &myuio, buf, count, of->fp, UIO_READ);
+
+
+    err = VOP_READ(of->vptr, &myuio);
+    if (err) {
+        lock_release(of_table_lock);
+        return err;
+    }
+
+    *retval = count - myuio.uio_resid;
     
-    lock_release(of_table->concurrency);
-    return fd;
+    lock_release(of_table_lock);
+
+    return 0;
+}
+
+int sys_write (int fd, const void *buf, size_t count, ssize_t *retval) {
+    // unopened fd
+    if (curproc->fd_table[fd] == NULL) {
+        return EBADF;
+    }
+
+    lock_acquire(of_table_lock);
+    // initialise uio using open file
+    struct iovec myiov;
+    struct uio myuio;
+    of_node *of = of_table[curproc->fd_table[fd]];
+
+    uio_kinit(&myiov, &myuio, buf, count, of->fp, UIO_WRITE);
+
+
+    err = VOP_WRITE(of->vptr, &myuio);
+    if (err) {
+        lock_release(of_table_lock);
+        return err;
+    }
+
+    *retval = count - myuio.uio_resid;
+    
+    lock_release(of_table_lock);
+
+    return 0;
+}
+
+off_t lseek(int fd, off_t offset, int whence) {
+
 }
