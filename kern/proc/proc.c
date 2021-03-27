@@ -49,6 +49,7 @@
 #include <addrspace.h>
 #include <vnode.h>
 #include <file.h>
+#include <kern/fcntl.h>
 
 
 /*
@@ -89,7 +90,6 @@ proc_create(const char *name)
 	for (int i = 0; i < FD_MAX; i++) {
 		proc->fd_table[i] = -1;
 	}
-
 	return proc;
 }
 

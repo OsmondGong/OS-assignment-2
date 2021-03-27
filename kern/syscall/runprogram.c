@@ -44,6 +44,7 @@
 #include <vfs.h>
 #include <syscall.h>
 #include <test.h>
+#include <file.h>
 
 /*
  * Load program "progname" and start running it in usermode.
@@ -78,6 +79,30 @@ runprogram(char *progname)
 	/* Switch to it and activate it. */
 	proc_setas(as);
 	as_activate();
+	
+	char c1[] = "con:";
+	char c2[] = "con:";
+	struct vnode *v1;
+	struct vnode *v2;
+	int r1 = vfs_open(c1, O_WRONLY, 0, &v1);
+	if (r1) {
+		return r1;
+	}
+	int r2 = vfs_open(c2, O_WRONLY, 0, &v2);
+	if (r2) {
+		return r2;
+	}
+	of_table[0]->flags = O_WRONLY;
+	of_table[0]->fp = 0;
+	of_table[0]->refcount = 1;
+	of_table[0]->vn = v1;
+	curproc->fd_table[1] = 0;
+	of_table[1]->flags = O_WRONLY;
+	of_table[1]->fp = 0;
+	of_table[1]->refcount = 1;
+	of_table[1]->vn = v2;
+	curproc->fd_table[2] = 1;
+
 
 	/* Load the executable. */
 	result = load_elf(v, &entrypoint);

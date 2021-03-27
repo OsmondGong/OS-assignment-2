@@ -70,6 +70,7 @@ int sys_open(const char *filename, int flags, mode_t mode, int *retval) {
             of_table[i]->fp = 0;
             of_table[i]->refcount = 0;
             of_table[i]->vn = vn;
+            break;
         }
     }
 
