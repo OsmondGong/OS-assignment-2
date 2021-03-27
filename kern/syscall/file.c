@@ -30,13 +30,7 @@ int sys_open(const char *filename, int flags, mode_t mode, int *retval) {
         return copyerr;
     }
 
-    // // check flags
-    // int all_flags = O_ACCMODE | O_NOCTTY | O_APPEND | O_TRUNC | O_EXCL | O_CREAT;
-    // if ((flags & all_flags) != flags) {
-    //     return EINVAL;
-    // }
-
-    int fd = -1;
+        int fd = -1;
     // get free file descripter index in open file table
     for (int i = 0; i < OPEN_MAX; i++) {
         if (curproc->fd_table[i] == -1) {
@@ -50,6 +44,21 @@ int sys_open(const char *filename, int flags, mode_t mode, int *retval) {
     }
     
     lock_acquire(of_table_lock);
+
+    int of_index = -1;
+    for (int i = 0; i < OPEN_MAX; i++) {
+        if (of_table[i]->flags == -1) {
+            of_index = i;
+
+            break;
+        }
+    }
+
+    if (of_index == -1) {
+        lock_release(of_table_lock);
+        return ENFILE;
+    }
+
     struct vnode *vn;
     // open file and put data in vnode
     int fderr = vfs_open(path, flags, mode, &vn);
@@ -60,27 +69,13 @@ int sys_open(const char *filename, int flags, mode_t mode, int *retval) {
 
     /*  
      * Allocate data from vfs opened file into 
-     * open file node (index is same as fd) 
+     * open file node (index is same as fd_table[fd]) 
      */
-    int of_index = -1;
-    for (int i = 0; i < OPEN_MAX; i++) {
-        if (of_table[i]->flags == -1) {
-            curproc->fd_table[fd] = i;
-            of_table[i]->flags = flags;
-            of_table[i]->fp = 0;
-            of_table[i]->refcount = 0;
-            of_table[i]->vn = vn;
-
-            of_index = i;
-            break;
-        }
-    }
-
-    if (of_index == -1) {
-        lock_release(of_table_lock);
-        return ENFILE;
-    }
-
+    curproc->fd_table[fd] = of_index;
+    of_table[of_index]->flags = flags;
+    of_table[of_index]->fp = 0;
+    of_table[of_index]->refcount = 0;
+    of_table[of_index]->vn = vn;
     lock_release(of_table_lock);
     *retval = fd;
     return 0;
