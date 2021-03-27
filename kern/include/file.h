@@ -16,6 +16,7 @@
 /*
  * Put your function declarations and data types here ...
  */
+
 int sys_open(const char *filename, int flags, mode_t mode, int *retval);
 int sys_close (int fd);
 int sys_read(int fd, void *buf, size_t count, ssize_t *retval);
@@ -28,5 +29,7 @@ typedef struct open_file_node {
     struct vnode *vn;
 } of_node;
 
+struct lock *of_table_lock;
+of_node *of_table[OPEN_MAX];
 
 #endif /* _FILE_H_ */

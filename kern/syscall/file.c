@@ -87,10 +87,10 @@ int sys_close (int fd) {
     lock_acquire(of_table_lock);
     of_node *of = of_table[curproc->fd_table[fd]];
     vfs_close(of->vn);
-    of_table[i]->flags = -1;
-    of_table[i]->fp = -1;
-    of_table[i]->refcount = -1;
-    of_table[i]->vn = NULL;
+    of_table[curproc->fd_table[fd]]->flags = -1;
+    of_table[curproc->fd_table[fd]]->fp = -1;
+    of_table[curproc->fd_table[fd]]->refcount = -1;
+    of_table[curproc->fd_table[fd]]->vn = NULL;
     curproc->fd_table[fd] = -1;
     lock_release(of_table_lock);
 
@@ -109,10 +109,10 @@ int sys_read(int fd, void *buf, size_t count, ssize_t *retval) {
     struct uio myuio;
     of_node *of = of_table[curproc->fd_table[fd]];
 
-    uio_kinit(&myiov, &myuio, buf, count, of->fp, UIO_READ);
+    uio_kinit(&myiov, &myuio, (void *)buf, count, of->fp, UIO_READ);
 
 
-    err = VOP_READ(of->vptr, &myuio);
+    int err = VOP_READ(of->vn, &myuio);
     if (err) {
         lock_release(of_table_lock);
         return err;
@@ -137,10 +137,10 @@ int sys_write (int fd, const void *buf, size_t count, ssize_t *retval) {
     struct uio myuio;
     of_node *of = of_table[curproc->fd_table[fd]];
 
-    uio_kinit(&myiov, &myuio, buf, count, of->fp, UIO_WRITE);
+    uio_kinit(&myiov, &myuio, (void *)buf, count, of->fp, UIO_WRITE);
 
 
-    err = VOP_WRITE(of->vptr, &myuio);
+    int err = VOP_WRITE(of->vn, &myuio);
     if (err) {
         lock_release(of_table_lock);
         return err;

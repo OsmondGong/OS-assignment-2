@@ -77,7 +77,6 @@ static const char harvard_copyright[] =
 /*
  * Initial boot sequence.
  */
-struct lock *of_table_lock;
 static
 void
 boot(void)
@@ -117,18 +116,6 @@ boot(void)
 	vfs_bootstrap();
 	kheap_nextgeneration();
 
-	/* Open file table initialisation + lock create */
-	of_table_lock = lock_create("open file table lock");
-    of_node *of_table[OPEN_MAX];
-	for (int i = 0; i < OPEN_MAX; i++) {
-		of_table[i]->flags = -1;
-		of_table[i]->fp = -1;
-		of_table[i]->refcount = -1;
-		of_table[i]->vn = NULL;
-	}
-
-
-
 	/* Probe and initialize devices. Interrupts should come on. */
 	kprintf("Device probe...\n");
 	KASSERT(curthread->t_curspl > 0);
@@ -154,6 +141,16 @@ boot(void)
 	 */
 	COMPILE_ASSERT(sizeof(userptr_t) == sizeof(char *));
 	COMPILE_ASSERT(sizeof(*(userptr_t)0) == sizeof(char));
+
+	/* Open file table initialisation + lock create */
+	of_table_lock = lock_create("open file table lock");
+	for (int i = 0; i < OPEN_MAX; i++) {
+		of_table[i] = kmalloc(sizeof(of_node));
+		of_table[i]->flags = -1;
+		of_table[i]->fp = -1;
+		of_table[i]->refcount = -1;
+		of_table[i]->vn = NULL;
+	}
 }
 
 /*
