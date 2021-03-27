@@ -30,7 +30,7 @@ int sys_open(const char *filename, int flags, mode_t mode, int *retval) {
         return copyerr;
     }
 
-        int fd = -1;
+    int fd = -1;
     // get free file descripter index in open file table
     for (int i = 0; i < OPEN_MAX; i++) {
         if (curproc->fd_table[i] == -1) {
