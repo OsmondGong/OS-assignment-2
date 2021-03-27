@@ -27,7 +27,7 @@ int sys_dup2(int oldfd, int newfd);
 typedef struct open_file_node {
     int flags;
     off_t fp;                   /* Offset */
-    int refcount;               /* For dup2 and fork */
+    int refcount;
     struct vnode *vn;
 } of_node;
 

@@ -87,7 +87,7 @@ proc_create(const char *name)
 
 	
 	// make all file descriptors = NULL
-	for (int i = 0; i < FD_MAX; i++) {
+	for (int i = 0; i < OPEN_MAX; i++) {
 		proc->fd_table[i] = -1;
 	}
 	return proc;

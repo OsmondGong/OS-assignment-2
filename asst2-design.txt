@@ -1,3 +1,47 @@
+1.  What data structures have you added and what function do they perform?
+ -  The first data structure we have implemented was the open_file_node (of_node). 
+    The of_node struct is located in kern/include/file.h, and contains the flags, 
+    fp (offset), refcount (how many file descriptors point to the of_node), 
+    and vn (pointer to the of_node's vnode). Flags need to be checked when the
+    file is wished to be written/read into. Fp (offset) is needed for when we
+    want to write/read/lseek a file. Refcount is used mostly when closing
+    an of_node. 
+ -  The second data structure we have implemented is an array of all of_nodes 
+    (of_table) and is of size OPEN_MAX. It is also found in kern/include/file.h. 
+    Its function is to allow global access to all of_nodes by the syscalls.
+ -  The third data structure is an int array of size OPEN_MAX (fd_table), 
+    which holds all file descriptors as the index of the array. The values of 
+    these file descriptors (fd) are the index of its corresponding of_node's 
+    index in the of_table. i.e. fd_table[fd] = index of of_node in of_table.
+    Since each fd_table is unique to each process, its function is to
+    allow us to keep track of the files/of_nodes each process opens. It
+    also allows multiple processes to access the same file pointer with 
+    independent file pointers.
 
-int sys_open(const char *filename, int flags, mode_t mode, int *retval); dsd a
-d asd asd asd asd asdsa int sys_close
+2.  What are any significant issues that surround managing the data structures 
+    and state they contain?
+ -  The first major issue is to handle concurrency issues which arise with the
+    use of a global variable (i.e. of_table). To prevent race conditions from
+    occuring, we have created a lock in kern/main/main.c, and acquire the lock
+    whenever we handle the of_table. On the other hand, the fd_table does not
+    require locks due to it being unique to each process, and cannot be accessed
+    by other processes.
+ -  The second issue was due to the fact that each of_node entry in the of_table
+    could have multiple incoming references to it. Hence, in order to implement
+    sys_close properly, we had to keep track of the number of file descriptors
+    for each open file, so we added refcount inside the of_node struct. This
+    had to be bookkept as open, dup2 and forks are called and affect this
+    refcount.
+
+3.  What data structures are per-process and what structures are shared between 
+    processes?
+ -  The fd_table is per-process and the of_table is shared between processes.
+
+4.  Are there any issues related to transferring data to and from applications?
+ -  No, since during read and write, the global data structure(s) (of_table) are
+    locked.
+
+5.  If fork() was implemented, what concurrency issues would be introduced to 
+    your implementation?
+ -  Since all syscalls are locked whenever a process accesses the of_table, no
+    concurrency issues should arise when fork is called.

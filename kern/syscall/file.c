@@ -36,7 +36,6 @@ int sys_open(const char *filename, int flags, mode_t mode, int *retval) {
     //     return EINVAL;
     // }
 
-    lock_acquire(of_table_lock);
     int fd = -1;
     // get free file descripter index in open file table
     for (int i = 0; i < OPEN_MAX; i++) {
@@ -47,10 +46,10 @@ int sys_open(const char *filename, int flags, mode_t mode, int *retval) {
     }
     // file descriptor table is full
     if (fd == -1) {
-        lock_release(of_table_lock);
         return EMFILE;
     }
     
+    lock_acquire(of_table_lock);
     struct vnode *vn;
     // open file and put data in vnode
     int fderr = vfs_open(path, flags, mode, &vn);
@@ -118,10 +117,16 @@ int sys_read(int fd, void *buf, size_t count, ssize_t *retval) {
     }
 
     lock_acquire(of_table_lock);
+
     // initialise uio using open file
     struct iovec myiov;
     struct uio myuio;
     of_node *of = of_table[curproc->fd_table[fd]];
+
+    if (of->flags != O_RDONLY || (of->flags & O_RDWR) != of->flags) {
+        lock_release(of_table_lock);
+        return EBADF;
+    }
 
     uio_kinit(&myiov, &myuio, (void *)buf, count, of->fp, UIO_READ);
 
@@ -150,6 +155,11 @@ int sys_write (int fd, const void *buf, size_t count, ssize_t *retval) {
     struct iovec myiov;
     struct uio myuio;
     of_node *of = of_table[curproc->fd_table[fd]];
+
+    if (of->flags != O_WRONLY || (of->flags & O_RDWR) != of->flags) {
+        lock_release(of_table_lock);
+        return EBADF;
+    }
 
     uio_kinit(&myiov, &myuio, (void *)buf, count, of->fp, UIO_WRITE);
 

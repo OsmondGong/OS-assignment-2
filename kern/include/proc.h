@@ -30,8 +30,6 @@
 #ifndef _PROC_H_
 #define _PROC_H_
 
-#define FD_MAX 128
-
 /*
  * Definition of a process.
  *
