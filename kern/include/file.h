@@ -22,6 +22,7 @@ int sys_close (int fd);
 int sys_read(int fd, void *buf, size_t count, ssize_t *retval);
 int sys_write (int fd, const void *buf, size_t count, ssize_t *retval);
 int sys_lseek(int fd, off_t offset, int whence, off_t *retval64);
+int sys_dup2(int oldfd, int newfd);
 
 typedef struct open_file_node {
     int flags;

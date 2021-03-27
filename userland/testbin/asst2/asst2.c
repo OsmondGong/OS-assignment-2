@@ -119,6 +119,11 @@ main(int argc, char * argv[])
         } while (k < 5);
 
         printf("* file lseek  okay\n");
+
+        dup2(fd, 20);
+        read(20, &buf[i], MAX_BUF);
+        printf("* dup2 okay\n");
+
         printf("* closing file\n");
         close(fd);
 

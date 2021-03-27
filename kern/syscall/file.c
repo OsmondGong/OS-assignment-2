@@ -24,17 +24,17 @@ int sys_open(const char *filename, int flags, mode_t mode, int *retval) {
     // check filename
     char path[NAME_MAX];
     size_t got;
-    int filename_check = copyinstr((const_userptr_t)filename, path, 
+    int copyerr = copyinstr((const_userptr_t)filename, path, 
                                     NAME_MAX, &got);
-    if (filename_check) {
-        return filename_check;
+    if (copyerr) {
+        return copyerr;
     }
 
-    // check flags
-    int all_flags = O_ACCMODE | O_NOCTTY | O_APPEND | O_TRUNC | O_EXCL | O_CREAT;
-    if ((flags & all_flags) != flags) {
-        return EINVAL;
-    }
+    // // check flags
+    // int all_flags = O_ACCMODE | O_NOCTTY | O_APPEND | O_TRUNC | O_EXCL | O_CREAT;
+    // if ((flags & all_flags) != flags) {
+    //     return EINVAL;
+    // }
 
     lock_acquire(of_table_lock);
     int fd = -1;
@@ -63,6 +63,7 @@ int sys_open(const char *filename, int flags, mode_t mode, int *retval) {
      * Allocate data from vfs opened file into 
      * open file node (index is same as fd) 
      */
+    int of_index = -1;
     for (int i = 0; i < OPEN_MAX; i++) {
         if (of_table[i]->flags == -1) {
             curproc->fd_table[fd] = i;
@@ -70,8 +71,15 @@ int sys_open(const char *filename, int flags, mode_t mode, int *retval) {
             of_table[i]->fp = 0;
             of_table[i]->refcount = 0;
             of_table[i]->vn = vn;
+
+            of_index = i;
             break;
         }
+    }
+
+    if (of_index == -1) {
+        lock_release(of_table_lock);
+        return ENFILE;
     }
 
     lock_release(of_table_lock);
@@ -86,12 +94,17 @@ int sys_close (int fd) {
     }
 
     lock_acquire(of_table_lock);
+
+    // if last fd pointing to this of, vfs close
     of_node *of = of_table[curproc->fd_table[fd]];
-    vfs_close(of->vn);
-    of_table[curproc->fd_table[fd]]->flags = -1;
-    of_table[curproc->fd_table[fd]]->fp = -1;
-    of_table[curproc->fd_table[fd]]->refcount = -1;
-    of_table[curproc->fd_table[fd]]->vn = NULL;
+    if (of->refcount == 1) {
+        vfs_close(of->vn);
+        of_table[curproc->fd_table[fd]]->flags = -1;
+        of_table[curproc->fd_table[fd]]->fp = -1;
+        of_table[curproc->fd_table[fd]]->refcount = -1;
+        of_table[curproc->fd_table[fd]]->vn = NULL;
+    }
+    of_table[curproc->fd_table[fd]]->refcount--;
     curproc->fd_table[fd] = -1;
     lock_release(of_table_lock);
 
@@ -213,4 +226,32 @@ int sys_lseek(int fd, off_t offset, int whence, off_t *retval64) {
         lock_release(of_table_lock);
         return 0;
     }
+}
+
+int sys_dup2(int oldfd, int newfd) {
+    // old fd not valid
+    if (curproc->fd_table[oldfd] == -1 || newfd < 0 || newfd > OPEN_MAX) {
+        return EBADF;
+    }
+    // dup2 same fd
+    if (oldfd == newfd) {
+        return 0;
+    }
+    // new fd points to open file already, close it
+    if (curproc->fd_table[newfd] != -1) {
+        int err = sys_close(newfd);
+        if (err) {
+            return err;
+        }
+    }
+    lock_acquire(of_table_lock);
+
+    of_node *old_of = of_table[curproc->fd_table[oldfd]];
+    
+    curproc->fd_table[newfd] = curproc->fd_table[oldfd];
+    old_of->refcount++;
+
+    lock_release(of_table_lock);
+
+    return 0;
 }
