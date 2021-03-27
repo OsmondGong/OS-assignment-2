@@ -156,6 +156,61 @@ int sys_write (int fd, const void *buf, size_t count, ssize_t *retval) {
 
 
 
-// off_t lseek(int fd, off_t offset, int whence) {
+int sys_lseek(int fd, off_t offset, int whence, off_t *retval64) {
+    // unopened fd
+    if (curproc->fd_table[fd] == -1) {
+        return EBADF;
+    }
 
-// }
+    if (whence < 0 || whence > 2) {
+        return EINVAL;
+    }
+
+    lock_acquire(of_table_lock);
+
+    of_node *of = of_table[curproc->fd_table[fd]];
+
+    // Checks if file is seekable
+    if(!VOP_ISSEEKABLE(of->vn)){
+        lock_release(of_table_lock);
+        return ESPIPE;
+    }
+
+    // Put offset into retval64
+    if (whence == SEEK_SET) {
+        if (offset < 0) {
+            lock_release(of_table_lock);
+            return EINVAL;
+        }
+        of->fp = offset;
+        *retval64 = of->fp;
+        lock_release(of_table_lock);
+        return 0;
+    }
+    else if (whence == SEEK_CUR) {
+        if ((of->fp + offset) < 0) {
+            lock_release(of_table_lock);
+            return EINVAL;
+        }
+        of->fp += offset;
+        *retval64 = of->fp;
+        lock_release(of_table_lock);
+        return 0;
+    }
+    else {
+        struct stat file_stat;
+        int err = VOP_STAT(of->vn, &file_stat);
+        if (err) {
+            return err;
+        }
+        
+        if ((of->fp + file_stat.st_size) < 0) {
+            lock_release(of_table_lock);
+            return EINVAL;
+        }
+        of->fp = file_stat.st_size + offset;
+        *retval64 = of->fp;
+        lock_release(of_table_lock);
+        return 0;
+    }
+}
