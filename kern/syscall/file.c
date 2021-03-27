@@ -117,7 +117,6 @@ int sys_read(int fd, void *buf, size_t count, ssize_t *retval) {
     }
 
     lock_acquire(of_table_lock);
-
     // initialise uio using open file
     struct iovec myiov;
     struct uio myuio;
