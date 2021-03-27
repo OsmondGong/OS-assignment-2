@@ -29,7 +29,8 @@ int sys_open(const char *filename, int flags, mode_t mode, int *retval) {
     if (copyerr) {
         return copyerr;
     }
-
+    
+    lock_acquire(of_table_lock);
     int fd = -1;
     // get free file descripter index in open file table
     for (int i = 0; i < OPEN_MAX; i++) {
@@ -40,16 +41,14 @@ int sys_open(const char *filename, int flags, mode_t mode, int *retval) {
     }
     // file descriptor table is full
     if (fd == -1) {
+        lock_release(of_table_lock);
         return EMFILE;
     }
-    
-    lock_acquire(of_table_lock);
 
     int of_index = -1;
     for (int i = 0; i < OPEN_MAX; i++) {
         if (of_table[i]->flags == -1) {
             of_index = i;
-
             break;
         }
     }
@@ -58,7 +57,7 @@ int sys_open(const char *filename, int flags, mode_t mode, int *retval) {
         lock_release(of_table_lock);
         return ENFILE;
     }
-
+    
     struct vnode *vn;
     // open file and put data in vnode
     int fderr = vfs_open(path, flags, mode, &vn);
@@ -69,7 +68,7 @@ int sys_open(const char *filename, int flags, mode_t mode, int *retval) {
 
     /*  
      * Allocate data from vfs opened file into 
-     * open file node (index is same as fd_table[fd]) 
+     * open file node (index is same as curproc->fd_table[fd]) 
      */
     curproc->fd_table[fd] = of_index;
     of_table[of_index]->flags = flags;
@@ -80,6 +79,7 @@ int sys_open(const char *filename, int flags, mode_t mode, int *retval) {
     *retval = fd;
     return 0;
 }
+
 
 int sys_close (int fd) {
     // unopened fd
@@ -117,7 +117,8 @@ int sys_read(int fd, void *buf, size_t count, ssize_t *retval) {
     struct uio myuio;
     of_node *of = of_table[curproc->fd_table[fd]];
 
-    if (of->flags != O_RDONLY || (of->flags & O_RDWR) != of->flags) {
+    int readwrite = of->flags & 3;
+    if (readwrite != O_RDONLY && (readwrite & O_RDWR) != readwrite) {
         lock_release(of_table_lock);
         return EBADF;
     }
@@ -150,7 +151,8 @@ int sys_write (int fd, const void *buf, size_t count, ssize_t *retval) {
     struct uio myuio;
     of_node *of = of_table[curproc->fd_table[fd]];
 
-    if (of->flags != O_WRONLY || (of->flags & O_RDWR) != of->flags) {
+    int readwrite = of->flags & O_ACCMODE;
+    if (readwrite != O_WRONLY && (readwrite & O_RDWR) != readwrite) {
         lock_release(of_table_lock);
         return EBADF;
     }
