@@ -16,6 +16,10 @@
 /*
  * Put your function declarations and data types here ...
  */
+int sys_open(const char *filename, int flags, mode_t mode, int *retval);
+int sys_close (int fd);
+int sys_read(int fd, void *buf, size_t count, ssize_t *retval);
+int sys_write (int fd, const void *buf, size_t count, ssize_t *retval);
 
 typedef struct open_file_node {
     int flags;

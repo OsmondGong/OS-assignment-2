@@ -19,66 +19,6 @@
  * Add your file-related functions here ...
  */
 
-int sys_open(const char *filename, int flags, int *retval) {
-    // check filename
-    char path[NAME_MAX];
-    size_t got;
-    int filename_check = copyinstr((const_userptr_t)filename, path, 
-                                    NAME_MAX, &got);
-    if (filename_check) {
-        return filename_check;
-    }
-
-    // check flags
-    int all_flags = O_ACCMODE | O_NOCTTY | O_APPEND | O_TRUNC | O_EXCL | O_CREAT;
-    if ((flags & all_flags) != flags) {
-        return EINVAL;
-    }
-
-    lock_acquire(of_table_lock);
-    int fd = -1;
-    // get free file descripter index in open file table
-    for (int i = 0; i < OPEN_MAX; i++) {
-        if (curproc->fd_table[i] == NULL) {
-            fd = i;
-            break;
-        }
-    }
-    // file descriptor table is full
-    if (fd == -1) {
-        lock_release(of_table_lock);
-        return EMFILE;
-    }
-    
-    struct vnode *vn;
-    mode_t mode;
-    // open file and put data in vnode
-    int fderr = vfs_open(path, flags, mode, &vn);
-    if (fderr) {
-        lock_release(of_table_lock);
-        return fderr;
-    }
-
-    /*  
-     * Allocate data from vfs opened file into 
-     * open file node (index is same as fd) 
-     */
-    for (int i = 0; i < OPEN_MAX; i++) {
-        if (of_table[i]->flags == NULL) {
-            curproc->fd_table[fd] = i;
-            of_table[i]->flags = flags;
-            of_table[i]->fp = 0;
-            of_table[i]->refcount = 0;
-            of_table[i]->vn = vn;
-        }
-    }
-
-    lock_release(of_table_lock);
-    *retval = fd;
-    return 0;
-}
-
-
 int sys_open(const char *filename, int flags, mode_t mode, int *retval) {
 
     // check filename
@@ -100,7 +40,7 @@ int sys_open(const char *filename, int flags, mode_t mode, int *retval) {
     int fd = -1;
     // get free file descripter index in open file table
     for (int i = 0; i < OPEN_MAX; i++) {
-        if (curproc->fd_table[i] == NULL) {
+        if (curproc->fd_table[i] == -1) {
             fd = i;
             break;
         }
@@ -124,7 +64,7 @@ int sys_open(const char *filename, int flags, mode_t mode, int *retval) {
      * open file node (index is same as fd) 
      */
     for (int i = 0; i < OPEN_MAX; i++) {
-        if (of_table[i]->flags == NULL) {
+        if (of_table[i]->flags == -1) {
             curproc->fd_table[fd] = i;
             of_table[i]->flags = flags;
             of_table[i]->fp = 0;
@@ -140,18 +80,18 @@ int sys_open(const char *filename, int flags, mode_t mode, int *retval) {
 
 int sys_close (int fd) {
     // unopened fd
-    if (curproc->fd_table[fd] == NULL) {
+    if (curproc->fd_table[fd] == -1) {
         return EBADF;
     }
 
     lock_acquire(of_table_lock);
     of_node *of = of_table[curproc->fd_table[fd]];
     vfs_close(of->vn);
-    of_table[i]->flags = NULL;
-    of_table[i]->fp = NULL;
-    of_table[i]->refcount = NULL;
+    of_table[i]->flags = -1;
+    of_table[i]->fp = -1;
+    of_table[i]->refcount = -1;
     of_table[i]->vn = NULL;
-    curproc->fd_table[fd] = NULL;
+    curproc->fd_table[fd] = -1;
     lock_release(of_table_lock);
 
     return 0;
@@ -159,7 +99,7 @@ int sys_close (int fd) {
 
 int sys_read(int fd, void *buf, size_t count, ssize_t *retval) {
     // unopened fd
-    if (curproc->fd_table[fd] == NULL) {
+    if (curproc->fd_table[fd] == -1) {
         return EBADF;
     }
 
@@ -187,7 +127,7 @@ int sys_read(int fd, void *buf, size_t count, ssize_t *retval) {
 
 int sys_write (int fd, const void *buf, size_t count, ssize_t *retval) {
     // unopened fd
-    if (curproc->fd_table[fd] == NULL) {
+    if (curproc->fd_table[fd] == -1) {
         return EBADF;
     }
 
@@ -213,6 +153,8 @@ int sys_write (int fd, const void *buf, size_t count, ssize_t *retval) {
     return 0;
 }
 
-off_t lseek(int fd, off_t offset, int whence) {
 
-}
+
+// off_t lseek(int fd, off_t offset, int whence) {
+
+// }

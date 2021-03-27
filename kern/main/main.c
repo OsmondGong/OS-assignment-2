@@ -77,6 +77,7 @@ static const char harvard_copyright[] =
 /*
  * Initial boot sequence.
  */
+struct lock *of_table_lock;
 static
 void
 boot(void)
@@ -117,12 +118,12 @@ boot(void)
 	kheap_nextgeneration();
 
 	/* Open file table initialisation + lock create */
-	struct lock *of_table_lock = lock_create("open file table lock");
+	of_table_lock = lock_create("open file table lock");
     of_node *of_table[OPEN_MAX];
 	for (int i = 0; i < OPEN_MAX; i++) {
-		of_table[i]->flags = NULL;
-		of_table[i]->fp = NULL;
-		of_table[i]->refcount = NULL;
+		of_table[i]->flags = -1;
+		of_table[i]->fp = -1;
+		of_table[i]->refcount = -1;
 		of_table[i]->vn = NULL;
 	}
 
