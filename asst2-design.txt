@@ -22,7 +22,7 @@
    For example, a file descriptor in process 1 and process 2 can both contain 
    the same index of an of_node and thus contain the same file pointer, and 
    another file descriptor in process 1 can also contain the index of an 
-of_node that points to the same file but with a different file pointer.
+   of_node that points to the same file but with a different file pointer.
 
 2.  What are any significant issues that surround managing the data structures 
    and state they contain?
@@ -41,13 +41,23 @@ of_node that points to the same file but with a different file pointer.
 
 3.  What data structures are per-process and what structures are shared between 
    processes?
--  The fd_table is per-process and the of_table is shared between processes.
+-  The fd_table is per-process as each process have their own unique file 
+   descriptor that points to the open file table.
+   On the other hand, the of_table is shared between processes. This allows for
+   multiple processes to access the same file pointer.
 
 4.  Are there any issues related to transferring data to and from applications?
 -  No, since during read and write, the global data structure(s) (of_table) are
-   locked.
+   locked. Although, there are limitations to our global data structure as a 
+   global lock is acquired every time a file is accessed which locks all 
+   of the syscalls (open, close, read, write, lseek, dup2). This means that
+   if a program on one process decides to write for a long period of time,
+   all other processes must wait for the write to complete on that file even
+   if the other processes are not accessing that specific file.
 
 5.  If fork() was implemented, what concurrency issues would be introduced to 
    your implementation?
--  Since all syscalls are locked whenever a process accesses the of_table, no
-   concurrency issues should arise when fork is called.
+-  All syscalls are locked whenever a process accesses the of_table and released 
+   as the syscall is returned. This causes all other processes to wait until the 
+   syscall is completed before commencing their operation. This allows for no
+   concurrency issues to arise when fork is called.
